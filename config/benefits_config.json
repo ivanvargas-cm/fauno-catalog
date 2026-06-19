@@ -1,0 +1,89 @@
+{
+  "branding": {
+    "logo_path": "config/assets/fauno_logo.png",
+    "bg_left_color": "#FFEC9A",
+    "bg_right_color": "#01756C",
+    "logo_color": "#01756C",
+    "text_color_dark": "#1a2e28",
+    "text_color_light": "#FFFFFF",
+    "font_title": "config/assets/fonts/Nunito-ExtraBold.ttf",
+    "font_body": "config/assets/fonts/DMSans-Regular.ttf"
+  },
+  "display": {
+    "show_price_always": true,
+    "show_discount_badge": true,
+    "show_benefits": true,
+    "show_free_shipping_label": true,
+    "free_shipping_threshold": 149900,
+    "min_discount_pct_for_badge": 5,
+    "canvas_size": [1080, 1080],
+    "image_quality": 92
+  },
+  "labels": {
+    "free_shipping": "🚚 Envío gratis",
+    "top_seller": "⭐ Top Ventas",
+    "new_product": "✦ Nuevo",
+    "new_product_days": 30,
+    "exclusive_online": "EXCLUSIVO ONLINE"
+  },
+  "collections": {
+    "cuidado-facial": {
+      "benefits": ["Sin Parabenos", "Vegano", "Dermatológicamente Testeado"]
+    },
+    "proteccion-solar": {
+      "benefits": ["FPS 50+", "Sin Parabenos", "Resistente al agua"]
+    },
+    "cuidado-capilar": {
+      "benefits": ["Sin Sulfatos", "Sin Parabenos", "Vegano"]
+    },
+    "shampoo": {
+      "benefits": ["Sin Sulfatos", "pH Balanceado", "Vegano"]
+    },
+    "tratamientos-capilares": {
+      "benefits": ["Tecnología Plex", "Sin Parabenos", "Restaura el daño"]
+    },
+    "mascarillas-capilares": {
+      "benefits": ["Nutrición Profunda", "Sin Parabenos", "Cruelty-free"]
+    },
+    "ninos-y-bebes": {
+      "benefits": ["Fórmula Suave", "Sin Lágrimas", "Cruelty-free"]
+    },
+    "rutinas-y-kits-faciales": {
+      "benefits": ["Rutina Completa", "Ingredientes Naturales", "Vegano"]
+    },
+    "rutinas-y-kits-capilares": {
+      "benefits": ["Rutina Completa", "Sin Sulfatos", "Tecnología Plex"]
+    },
+    "tratamientos-y-serums": {
+      "benefits": ["Alta Concentración", "Sin Parabenos", "Resultados visibles"]
+    }
+  },
+  "products": {
+    "SHOPIFY_PRODUCT_ID_BESTSELLER_1": {
+      "benefits": ["Sin Sulfatos", "Tecnología Plex", "Desde la 1ra aplicación"],
+      "label": "top_seller"
+    },
+    "SHOPIFY_PRODUCT_ID_BESTSELLER_2": {
+      "benefits": ["Vitamina C Estabilizada", "Anti-manchas", "Sin Parabenos"],
+      "label": "top_seller"
+    },
+    "SHOPIFY_PRODUCT_ID_BESTSELLER_3": {
+      "benefits": ["Anti-Frizz 48h", "Sin Sulfatos", "Efecto liso natural"],
+      "label": "top_seller"
+    }
+  },
+  "defaults": {
+    "benefits": ["Sin Parabenos", "Vegano", "Cruelty-free"],
+    "icon_path": "config/assets/icon_check.png"
+  },
+  "promo_overlay": {
+    "badge_color": "#E8534A",
+    "badge_text_color": "#FFFFFF",
+    "sale_price_color": "#1a2e28",
+    "original_price_color": "#999999",
+    "currency_symbol": "$",
+    "currency_format": "{symbol} {amount:,.0f}",
+    "locale_thousands_sep": ".",
+    "locale_decimal_sep": ","
+  }
+}

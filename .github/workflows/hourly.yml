@@ -1,0 +1,60 @@
+name: Fauno Catalog Overlay — Actualización automática
+
+on:
+  schedule:
+    # Corre cada hora (puedes ajustar la frecuencia)
+    - cron: '0 * * * *'
+  # También permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
+    inputs:
+      only_sale:
+        description: 'Solo productos en oferta'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  generate-catalog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Necesario para hacer push de imágenes
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        working-directory: fauno-meta-catalog
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Generar imágenes de catálogo
+        working-directory: fauno-meta-catalog
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          ARGS="--shopify --github-push --github-repo ${{ github.repository }} --base-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/images"
+
+          if [ "${{ inputs.only_sale }}" = "true" ]; then
+            ARGS="$ARGS --only-sale"
+          fi
+
+          python main.py $ARGS
+
+      - name: Commit y push imágenes
+        run: |
+          git config user.name  "Fauno Catalog Bot"
+          git config user.email "bot@crownmedia.com.co"
+          git add fauno-meta-catalog/docs/images/ || true
+          git add fauno-meta-catalog/output/supplemental_feed.csv || true
+          git diff --staged --quiet || git commit -m "chore: actualizar catálogo visual [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+          git push || echo "Sin cambios nuevos"

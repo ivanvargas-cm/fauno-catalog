@@ -1,0 +1,45 @@
+{
+  "client": {
+    "name": "Fauno Origen Natural",
+    "tagline": "Belleza Natural Colombiana",
+    "website": "fauno.com.co",
+    "country": "Colombia",
+    "industry": "E-commerce · Belleza · Skincare · Cuidado Capilar",
+    "currency": "COP",
+    "shopify_connection": "fauno-origen-natural",
+    "shopify_id": 27239088189
+  },
+  "brand_colors": {
+    "bg_left": "#FFEC9A",
+    "bg_right": "#01756C",
+    "logo_color": "#01756C",
+    "accent_red": "#E8534A",
+    "text_dark": "#1a2e28",
+    "text_light": "#FFFFFF",
+    "claim_pill_bg": "rgba(1,117,108,0.10)",
+    "claim_pill_border": "rgba(1,117,108,0.25)"
+  },
+  "template": {
+    "name": "Cream Natural",
+    "canvas_size": [1080, 1080],
+    "layout": "diagonal_split",
+    "diagonal_pct_right": 55,
+    "logo_position": "top_left",
+    "product_image_position": "right_center",
+    "product_image_size_pct": 72,
+    "benefits_position": "bottom_left",
+    "price_position": "bottom_left_below_benefits",
+    "badge_position": "top_right",
+    "free_shipping_position": "bottom_right"
+  },
+  "dynamic_labels": {
+    "free_shipping_threshold_cop": 149900,
+    "new_product_days": 30,
+    "top_seller_label": "Top Ventas",
+    "new_product_label": "Nuevo",
+    "free_shipping_label": "Envio gratis",
+    "exclusive_label": "EXCLUSIVO ONLINE"
+  },
+  "currency_format": "$ {amount:,.0f}",
+  "locale": "es_CO"
+}
