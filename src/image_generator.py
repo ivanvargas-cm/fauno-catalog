@@ -58,7 +58,7 @@ class ImageGenerator:
             )
             context = await browser.new_context(
                 viewport={"width": self.canvas_size, "height": self.canvas_size},
-                device_scale_factor=2,  # 2x → imagen final 1000×1000px (ideal para Meta)
+                device_scale_factor=1,
             )
             page = await context.new_page()
 

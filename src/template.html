@@ -4,43 +4,88 @@
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: transparent; width: 500px; height: 500px; overflow: hidden; }
+  body { background: transparent; width: 1080px; height: 1080px; overflow: hidden; }
   canvas { display: block; }
 </style>
 </head>
 <body>
-<canvas id="c" width="500" height="500"></canvas>
+<canvas id="c" width="1080" height="1080"></canvas>
 
 <script>
-// ─── Datos del producto inyectados por Playwright ───────────────────────────
-// window.PRODUCT_DATA se setea antes de ejecutar renderProduct()
-// Estructura:
-// {
-//   title: "Alisador Progresivo",
-//   subtitle: "400ml",          // volumen / presentación
-//   price: 38900,               // número
-//   compare_at_price: null,     // número o null
-//   image_url: "https://...",   // URL imagen producto (fondo ya removido si es posible)
-//   logo_url: "https://...",    // URL logo Fauno
-//   benefits: ["Sin Sulfatos", "Sin Parabenos", "Vegano"],
-//   label: "top_ventas" | "nuevo" | "exclusivo_online" | null,
-//   free_shipping: true | false
-// }
-
-const SIZE = 500;
+const SIZE = 1080;
 
 function loadImg(url) {
   return new Promise((res, rej) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => res(img);
-    img.onerror = (e) => rej(new Error('Failed to load: ' + url));
+    img.onerror = () => rej(new Error('Failed: ' + url));
     img.src = url;
   });
 }
 
-// Remoción de fondo por flood-fill desde las 4 esquinas
-function removeBgFloodFill(img, tol = 40) {
+// Remoción de fondo SOLO para blancos/casi blancos
+// Mucho más segura que samplear el color de la esquina
+function removeWhiteBg(img, threshold = 230, feather = 20) {
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const id = ctx.getImageData(0, 0, c.width, c.height);
+  const d = id.data;
+  const W = c.width, H = c.height;
+  const visited = new Uint8Array(W * H);
+
+  function isWhitish(x, y) {
+    const i = (y * W + x) * 4;
+    return d[i] >= threshold && d[i+1] >= threshold && d[i+2] >= threshold;
+  }
+
+  // Flood fill desde las 4 esquinas, solo elimina píxeles casi blancos
+  const stack = [];
+  [[0,0],[W-1,0],[0,H-1],[W-1,H-1]].forEach(([x,y]) => {
+    if (isWhitish(x, y)) stack.push({x, y});
+  });
+
+  while (stack.length) {
+    const {x, y} = stack.pop();
+    if (x < 0 || x >= W || y < 0 || y >= H) continue;
+    const idx = y * W + x;
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    if (!isWhitish(x, y)) continue;
+    // Transparencia proporcional a qué tan blanco es
+    const i = idx * 4;
+    const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
+    const alpha = Math.max(0, 255 - brightness);
+    d[i+3] = Math.min(d[i+3], alpha);
+    stack.push({x:x+1,y},{x:x-1,y},{x,y:y+1},{x,y:y-1});
+  }
+
+  // Feather: suavizar bordes semi-transparentes
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 1; y < H-1; y++) {
+      for (let x = 1; x < W-1; x++) {
+        const i = (y*W+x)*4;
+        if (d[i+3] > 0 && d[i+3] < 200) {
+          const neighbors = [
+            d[((y-1)*W+x)*4+3], d[((y+1)*W+x)*4+3],
+            d[(y*W+x-1)*4+3],   d[(y*W+x+1)*4+3]
+          ];
+          const avg = neighbors.reduce((a,b) => a+b, 0) / 4;
+          d[i+3] = Math.round((d[i+3] + avg) / 2);
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
+// Remoción de fondo para el logo (fondo gris claro)
+function removeLogoBg(img) {
   const c = document.createElement('canvas');
   c.width = img.naturalWidth;
   c.height = img.naturalHeight;
@@ -53,200 +98,206 @@ function removeBgFloodFill(img, tol = 40) {
 
   function colorDist(x, y, br, bg, bb) {
     const i = (y * W + x) * 4;
-    return Math.sqrt((d[i] - br) ** 2 + (d[i + 1] - bg) ** 2 + (d[i + 2] - bb) ** 2);
+    return Math.sqrt((d[i]-br)**2 + (d[i+1]-bg)**2 + (d[i+2]-bb)**2);
   }
   function getBgColor(x, y) {
     const i = (y * W + x) * 4;
-    return [d[i], d[i + 1], d[i + 2]];
+    return [d[i], d[i+1], d[i+2]];
   }
 
   const stack = [];
-  [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]].forEach(([x, y]) => {
-    const [br, bg, bb] = getBgColor(x, y);
-    stack.push({ x, y, br, bg, bb });
+  [[0,0],[W-1,0],[0,H-1],[W-1,H-1]].forEach(([x,y]) => {
+    const [br,bg,bb] = getBgColor(x,y);
+    stack.push({x, y, br, bg, bb});
   });
 
   while (stack.length) {
-    const { x, y, br, bg, bb } = stack.pop();
+    const {x, y, br, bg, bb} = stack.pop();
     if (x < 0 || x >= W || y < 0 || y >= H) continue;
     const idx = y * W + x;
     if (visited[idx]) continue;
     visited[idx] = 1;
-    if (colorDist(x, y, br, bg, bb) > tol) continue;
-    d[idx * 4 + 3] = 0;
-    stack.push(
-      { x: x + 1, y, br, bg, bb }, { x: x - 1, y, br, bg, bb },
-      { x, y: y + 1, br, bg, bb }, { x, y: y - 1, br, bg, bb }
-    );
+    if (colorDist(x, y, br, bg, bb) > 50) continue;
+    d[idx*4+3] = 0;
+    stack.push({x:x+1,y,br,bg,bb},{x:x-1,y,br,bg,bb},{x,y:y+1,br,bg,bb},{x,y:y-1,br,bg,bb});
   }
+
   ctx.putImageData(id, 0, 0);
   return c;
 }
 
 function formatPrice(n) {
-  // 38900 → "$ 38.900"
   return '$ ' + Math.round(n).toLocaleString('es-CO');
+}
+
+// Dibuja texto con wrap automático, retorna Y final
+function drawWrappedText(ctx, text, x, maxWidth, y, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let currentY = y;
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY);
+      line = word;
+      currentY += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, currentY);
+  return currentY + lineHeight;
 }
 
 async function renderProduct(data) {
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+  const S = SIZE;
 
   // ── 1. Fondo amarillo
   ctx.fillStyle = '#FFEC9A';
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillRect(0, 0, S, S);
 
   // ── 2. Panel teal diagonal derecho
   ctx.beginPath();
-  ctx.moveTo(SIZE * 0.41, 0);
-  ctx.lineTo(SIZE, 0);
-  ctx.lineTo(SIZE, SIZE);
-  ctx.lineTo(SIZE * 0.21, SIZE);
+  ctx.moveTo(S*0.41, 0); ctx.lineTo(S, 0);
+  ctx.lineTo(S, S); ctx.lineTo(S*0.21, S);
   ctx.closePath();
   ctx.fillStyle = '#01756C';
   ctx.fill();
 
   // ── 3. Glow sutil en teal
-  const grd = ctx.createRadialGradient(SIZE * 0.79, SIZE * 0.20, 0, SIZE * 0.79, SIZE * 0.20, SIZE * 0.40);
+  const grd = ctx.createRadialGradient(S*0.79, S*0.20, 0, S*0.79, S*0.20, S*0.40);
   grd.addColorStop(0, 'rgba(255,255,255,0.07)');
   grd.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.beginPath();
-  ctx.moveTo(SIZE * 0.41, 0); ctx.lineTo(SIZE, 0);
-  ctx.lineTo(SIZE, SIZE); ctx.lineTo(SIZE * 0.21, SIZE);
+  ctx.moveTo(S*0.41,0); ctx.lineTo(S,0);
+  ctx.lineTo(S,S); ctx.lineTo(S*0.21,S);
   ctx.closePath();
-  ctx.fillStyle = grd;
-  ctx.fill();
+  ctx.fillStyle = grd; ctx.fill();
 
-  // ── 4. Cargar y limpiar imágenes (en paralelo)
+  // ── 4. Cargar imágenes
   const [productImg, logoImg] = await Promise.all([
     loadImg(data.image_url),
     loadImg(data.logo_url)
   ]);
-  const productClean = removeBgFloodFill(productImg, 38);
-  const logoClean    = removeBgFloodFill(logoImg, 50);
+  const productClean = removeWhiteBg(productImg, 235, 20);
+  const logoClean    = removeLogoBg(logoImg);
 
-  // ── 5. Producto — centrado en panel teal
+  // ── 5. Producto centrado en teal
   const pW = productClean.width, pH = productClean.height;
-  const pScale = Math.min((SIZE * 0.58) / pW, (SIZE * 0.88) / pH);
-  const pDW = pW * pScale, pDH = pH * pScale;
-  const pX = SIZE * 0.41 + (SIZE * 0.59 - pDW) / 2;
-  const pY = (SIZE - pDH) / 2 + SIZE * 0.02;
-  ctx.shadowColor = 'rgba(0,0,0,0.22)';
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 10;
+  const pScale = Math.min((S*0.56)/pW, (S*0.82)/pH);
+  const pDW = pW*pScale, pDH = pH*pScale;
+  const pX = S*0.42 + (S*0.58 - pDW)/2;
+  const pY = (S - pDH)/2 + S*0.02;
+  ctx.shadowColor = 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur = S*0.03;
+  ctx.shadowOffsetY = S*0.015;
   ctx.drawImage(productClean, pX, pY, pDW, pDH);
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-  // ── 6. Logo (esquina superior izquierda)
+  // ── 6. Logo
   const lW = logoClean.width, lH = logoClean.height;
-  const lScale = Math.min((SIZE * 0.30) / lW, (SIZE * 0.10) / lH);
-  ctx.drawImage(logoClean, SIZE * 0.040, SIZE * 0.038, lW * lScale, lH * lScale);
+  const lScale = Math.min((S*0.28)/lW, (S*0.10)/lH);
+  ctx.drawImage(logoClean, S*0.040, S*0.038, lW*lScale, lH*lScale);
 
-  // ── 7. Nombre del producto
+  // ── 7. Nombre del producto (wrap automático)
   ctx.fillStyle = '#1a2e28';
-  ctx.font = `800 ${SIZE * 0.056}px Georgia, serif`;
-  const titleWords = data.title.split(' ');
-  // Hasta 2 líneas de nombre
-  let line1 = '', line2 = '';
-  for (let w of titleWords) {
-    if (ctx.measureText(line1 + ' ' + w).width < SIZE * 0.35 && !line2) {
-      line1 = (line1 ? line1 + ' ' : '') + w;
-    } else {
-      line2 = (line2 ? line2 + ' ' : '') + w;
-    }
-  }
-  ctx.fillText(line1, SIZE * 0.040, SIZE * 0.275);
-  if (line2) ctx.fillText(line2, SIZE * 0.040, SIZE * 0.340);
+  const maxTitleW = S*0.34;
+  const titleY = S*0.24;
 
-  // Subtítulo (volumen/presentación)
+  // Tamaño de fuente dinámico según largo del título
+  const titleLen = data.title.length;
+  const fontSize = titleLen > 20 ? S*0.048 : S*0.056;
+  ctx.font = `800 ${fontSize}px Georgia, serif`;
+
+  const titleEndY = drawWrappedText(ctx, data.title, S*0.040, maxTitleW, titleY, fontSize*1.2);
+
+  // Subtítulo
   if (data.subtitle) {
-    ctx.font = `${SIZE * 0.034}px Georgia, serif`;
-    ctx.fillText(data.subtitle, SIZE * 0.040, line2 ? SIZE * 0.396 : SIZE * 0.310);
+    ctx.font = `${S*0.030}px Georgia, serif`;
+    ctx.fillText(data.subtitle, S*0.040, titleEndY + S*0.01);
   }
 
-  // ── 8. Benefits (claims)
+  // ── 8. Benefits
   const benefits = (data.benefits || []).slice(0, 3);
-  ctx.font = `600 ${SIZE * 0.028}px Arial, sans-serif`;
+  ctx.font = `600 ${S*0.028}px Arial, sans-serif`;
+  const benefitsStartY = S*0.63;
   benefits.forEach((cl, i) => {
     const tw = ctx.measureText(cl).width;
-    const pw = tw + SIZE * 0.044, ph = SIZE * 0.052;
-    const px = SIZE * 0.040, py = SIZE * 0.632 + i * (ph + SIZE * 0.016);
+    const pw = tw + S*0.044, ph = S*0.052;
+    const px = S*0.040, py = benefitsStartY + i*(ph + S*0.016);
     ctx.fillStyle = 'rgba(1,117,108,0.13)';
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph / 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(1,117,108,0.28)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph/2); ctx.fill();
+    ctx.strokeStyle = 'rgba(1,117,108,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#01756C';
-    ctx.fillText(cl, px + SIZE * 0.022, py + ph * 0.68);
+    ctx.fillText(cl, px + S*0.022, py + ph*0.68);
   });
 
   // ── 9. Precio
   const isOnSale = data.compare_at_price && data.compare_at_price > data.price;
   if (isOnSale) {
-    // Precio original tachado
     ctx.fillStyle = '#999';
-    ctx.font = `${SIZE * 0.032}px Arial`;
+    ctx.font = `${S*0.030}px Arial`;
     const op = formatPrice(data.compare_at_price);
-    const opX = SIZE * 0.040, opY = SIZE * 0.895;
+    const opX = S*0.040, opY = S*0.893;
     ctx.fillText(op, opX, opY);
     const opW = ctx.measureText(op).width;
-    ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(opX, opY - SIZE * 0.006); ctx.lineTo(opX + opW, opY - SIZE * 0.006); ctx.stroke();
-    // Precio oferta
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(opX, opY - S*0.007);
+    ctx.lineTo(opX + opW, opY - S*0.007);
+    ctx.stroke();
     ctx.fillStyle = '#1a2e28';
-    ctx.font = `900 ${SIZE * 0.070}px Georgia, serif`;
-    ctx.fillText(formatPrice(data.price), SIZE * 0.040, SIZE * 0.970);
+    ctx.font = `900 ${S*0.068}px Georgia, serif`;
+    ctx.fillText(formatPrice(data.price), S*0.040, S*0.968);
   } else {
     ctx.fillStyle = '#1a2e28';
-    ctx.font = `900 ${SIZE * 0.070}px Georgia, serif`;
-    ctx.fillText(formatPrice(data.price), SIZE * 0.040, SIZE * 0.970);
+    ctx.font = `900 ${S*0.068}px Georgia, serif`;
+    ctx.fillText(formatPrice(data.price), S*0.040, S*0.968);
   }
 
-  // ── 10. Badge de descuento o etiqueta
+  // ── 10. Badge descuento o etiqueta
   if (isOnSale) {
     const discPct = Math.round((1 - data.price / data.compare_at_price) * 100);
     if (discPct >= 5) {
-      const bx = SIZE * 0.875, by = SIZE * 0.082, br = SIZE * 0.080;
-      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2);
+      const bx = S*0.875, by = S*0.082, br = S*0.075;
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2);
       ctx.fillStyle = '#E8534A'; ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-      ctx.font = `900 ${SIZE * 0.040}px Arial`;
-      ctx.fillText(`-${discPct}%`, bx, by + SIZE * 0.014);
+      ctx.font = `900 ${S*0.038}px Arial`;
+      ctx.fillText(`-${discPct}%`, bx, by + S*0.014);
       ctx.textAlign = 'left';
     }
   } else if (data.label) {
-    const labels = {
-      top_ventas: '⭐ Top Ventas',
-      nuevo: '✦ Nuevo',
-      exclusivo_online: 'EXCLUSIVO ONLINE'
-    };
+    const labels = { top_ventas:'⭐ Top Ventas', nuevo:'✦ Nuevo', exclusivo_online:'EXCLUSIVO ONLINE' };
     const tag = labels[data.label] || data.label;
-    ctx.font = `600 ${SIZE * 0.027}px Arial`;
-    const tw = ctx.measureText(tag).width + SIZE * 0.040;
-    const tx = SIZE * 0.965 - tw, ty = SIZE * 0.040;
+    ctx.font = `600 ${S*0.026}px Arial`;
+    const tw = ctx.measureText(tag).width + S*0.040;
+    const tx = S*0.965 - tw, ty = S*0.040;
     ctx.fillStyle = 'rgba(255,255,255,0.16)';
-    ctx.beginPath(); ctx.roundRect(tx, ty, tw, SIZE * 0.052, SIZE * 0.013); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.30)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(tx, ty, tw, S*0.050, S*0.013); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.30)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.fillText(tag, tx + SIZE * 0.018, ty + SIZE * 0.035);
+    ctx.fillText(tag, tx + S*0.018, ty + S*0.033);
   }
 
   // ── 11. Envío gratis
   if (data.free_shipping) {
     const es = '🚚 Envío gratis';
-    ctx.font = `600 ${SIZE * 0.027}px Arial`;
-    const ew = ctx.measureText(es).width + SIZE * 0.040;
-    const ex = SIZE * 0.965 - ew, ey = SIZE * 0.926;
+    ctx.font = `600 ${S*0.026}px Arial`;
+    const ew = ctx.measureText(es).width + S*0.040;
+    const ex = S*0.965 - ew, ey = S*0.926;
     ctx.fillStyle = 'rgba(255,255,255,0.14)';
-    ctx.beginPath(); ctx.roundRect(ex, ey, ew, SIZE * 0.052, SIZE * 0.013); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.26)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(ex, ey, ew, S*0.050, S*0.013); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.26)'; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.fillText(es, ex + SIZE * 0.018, ey + SIZE * 0.035);
+    ctx.fillText(es, ex + S*0.018, ey + S*0.033);
   }
 
-  // ── Señal de completado para Playwright
   window.__RENDER_COMPLETE__ = true;
 }
 
-// Auto-render si hay datos en window.PRODUCT_DATA
 if (window.PRODUCT_DATA) {
   renderProduct(window.PRODUCT_DATA);
 }

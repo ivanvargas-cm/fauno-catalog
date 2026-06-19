@@ -133,6 +133,7 @@ def main():
     generator = ImageGenerator(
         template_path=TEMPLATE,
         output_dir=OUTPUT_DIR,
+        canvas_size=1080,
     )
     generated = generator.generate_all_sync(products)
     logger.info(f"   ✅ {len(generated)}/{len(products)} imágenes generadas")
