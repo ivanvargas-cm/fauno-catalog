@@ -33,11 +33,13 @@ class ImageGenerator:
         output_dir: Path,
         logo_url: str = LOGO_URL,
         canvas_size: int = 500,
+        benefits_map: dict[str, list[str]] | None = None,
     ):
         self.template_path = Path(template_path)
         self.output_dir = Path(output_dir)
         self.logo_url = logo_url
         self.canvas_size = canvas_size
+        self.benefits_map: dict[str, list[str]] = benefits_map or {}
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         if not self.template_path.exists():
@@ -109,12 +111,12 @@ class ImageGenerator:
             timeout=15_000,
         )
 
-        # Screenshot del canvas element
-        canvas_el = await page.query_selector("canvas#c")
-        if not canvas_el:
-            raise RuntimeError("Canvas #c no encontrado en el template")
+        # Screenshot del contenedor principal (div#container, HTML/CSS layout)
+        container_el = await page.query_selector("div#container")
+        if not container_el:
+            raise RuntimeError("div#container no encontrado en el template")
 
-        await canvas_el.screenshot(path=str(output_path), type="jpeg", quality=92)
+        await container_el.screenshot(path=str(output_path), type="jpeg", quality=92)
         return output_path
 
     def _build_render_data(self, product: dict) -> dict:
@@ -127,8 +129,8 @@ class ImageGenerator:
         raw_title = product.get("title", "")
         title, subtitle = self._split_title(raw_title)
 
-        # Beneficios: por producto → por colección → defaults
-        benefits = self._get_benefits(product)
+        # Beneficios: sheet por handle/id → por colección → defaults
+        benefits = self._get_benefits(product, self.benefits_map)
 
         # Etiqueta dinámica (se ignora si hay oferta — el badge tiene prioridad)
         label = self._get_label(product, price)
@@ -166,13 +168,23 @@ class ImageGenerator:
         return title, ""
 
     @staticmethod
-    def _get_benefits(product: dict) -> list[str]:
+    def _get_benefits(product: dict, benefits_map: dict[str, list[str]] | None = None) -> list[str]:
         """
         Orden de prioridad:
-        1. product["benefits"] (campo directo si viene del Sheet)
-        2. benefits_map por colección (config externa)
-        3. Defaults
+        1. benefits_map por handle/id (cargado desde Google Sheets)
+        2. product["benefits"] (campo directo en el producto)
+        3. benefits_map por colección (config interna)
+        4. Defaults
         """
+        # 1. Buscar en el mapa de beneficios por handle o id
+        if benefits_map:
+            handle = (product.get("handle") or "").lower().strip()
+            pid = str(product.get("id") or "").lower().strip()
+            custom = benefits_map.get(handle) or benefits_map.get(pid)
+            if custom:
+                return custom
+
+        # 2. Campo directo en el producto
         if product.get("benefits"):
             b = product["benefits"]
             return b if isinstance(b, list) else [x.strip() for x in b.split(",")]

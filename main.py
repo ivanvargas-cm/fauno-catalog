@@ -34,6 +34,8 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from image_generator import ImageGenerator
 from sheets_feed import (
+    read_benefits_from_csv,
+    read_benefits_from_sheets,
     read_products_from_csv,
     read_products_from_sheets,
     write_image_urls_to_csv,
@@ -66,7 +68,11 @@ def parse_args():
     p.add_argument("--worksheet",   metavar="NAME",  default=None)
     p.add_argument("--only-sale",   action="store_true", help="Solo productos en oferta")
     p.add_argument("--product-ids", metavar="IDs",   default=None)
-    p.add_argument("--dry-run",     action="store_true")
+    p.add_argument("--dry-run",          action="store_true")
+    p.add_argument("--benefits-sheet-id", metavar="ID",   default=None,
+                   help="ID del Google Sheet con pestaña 'Beneficios' (handle, benefit_1, benefit_2, benefit_3)")
+    p.add_argument("--benefits-csv",     metavar="PATH",  default=None,
+                   help="CSV local con beneficios por producto (alternativa al Sheet)")
     p.add_argument("--github-push", action="store_true", help="Commit y push a GitHub")
     p.add_argument("--github-repo", metavar="REPO",  default=None,
                    help="user/repo para GitHub Pages (ej: crownmedia/fauno-catalog)")
@@ -128,23 +134,41 @@ def main():
         logger.info("────────────────────────────────────────────────")
         return
 
-    # ── 4. Generar imágenes ─────────────────────────────────────────────────
+    # ── 4. Cargar beneficios personalizados (opcional) ──────────────────────
+    benefits_map: dict = {}
+    if args.benefits_sheet_id:
+        logger.info("📋 Cargando beneficios desde Google Sheets...")
+        try:
+            benefits_map = read_benefits_from_sheets(args.benefits_sheet_id)
+        except Exception as e:
+            logger.warning(f"No se pudieron cargar beneficios del Sheet: {e}")
+    elif args.benefits_csv:
+        logger.info(f"📋 Cargando beneficios desde CSV: {args.benefits_csv}")
+        benefits_map = read_benefits_from_csv(args.benefits_csv)
+
+    if benefits_map:
+        logger.info(f"   ✅ Beneficios personalizados para {len(benefits_map)} productos")
+    else:
+        logger.info("   ℹ️  Sin beneficios personalizados — usando defaults por colección")
+
+    # ── 5. Generar imágenes ─────────────────────────────────────────────────
     logger.info(f"\n🎨 Generando imágenes ({len(products)} productos)...")
     generator = ImageGenerator(
         template_path=TEMPLATE,
         output_dir=OUTPUT_DIR,
         canvas_size=1080,
+        benefits_map=benefits_map,
     )
     generated = generator.generate_all_sync(products)
     logger.info(f"   ✅ {len(generated)}/{len(products)} imágenes generadas")
 
-    # ── 5. Construir mapa de URLs públicas ──────────────────────────────────
+    # ── 6. Construir mapa de URLs públicas ──────────────────────────────────
     base_url = args.base_url or _infer_base_url(args.github_repo)
     image_urls: dict[str, str] = {}
     for pid, local_path in generated.items():
         image_urls[pid] = f"{base_url.rstrip('/')}/{local_path.name}"
 
-    # ── 6. Escribir feed suplementario CSV ─────────────────────────────────
+    # ── 7. Escribir feed suplementario CSV ─────────────────────────────────
     write_image_urls_to_csv(products, image_urls, FEED_CSV)
 
     # Si hay Sheet ID, también actualizar el Google Sheet
@@ -155,13 +179,13 @@ def main():
             logger.warning(f"No se pudo actualizar el Sheet: {e}")
             logger.warning("   El CSV local sí fue generado correctamente.")
 
-    # ── 7. Copiar imágenes a docs/ para GitHub Pages ────────────────────────
+    # ── 8. Copiar imágenes a docs/ para GitHub Pages ────────────────────────
     if args.github_push or os.environ.get("GITHUB_ACTIONS"):
         _copy_to_docs(generated)
         if args.github_push:
             _git_commit_and_push()
 
-    # ── 8. Resumen final ────────────────────────────────────────────────────
+    # ── 9. Resumen final ────────────────────────────────────────────────────
     on_sale_count = sum(
         1 for p in products
         if p.get("compare_at_price") and p["compare_at_price"] > p["price"]

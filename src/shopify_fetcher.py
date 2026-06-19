@@ -15,6 +15,16 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Handles exactos de los productos "Top en ventas" — actualizar según indicación del cliente
+TOP_SELLER_HANDLES = {
+    "alisador-progresivo-termoprotectors",          # Alisador Progresivo Termoprotector 400ml
+    "serum-anti-edad-vitamina-c-acido-ferulico-30ml",  # Serum Anti-Edad Vitamina C Ácido Ferúlico
+    "crema-hidra-gel-24h-50gr",                     # Crema Hidra Gel 24h 50gr
+    "oleo-capilar",                                 # Óleo Capilar
+    "spray-anti-humedad-desenredante",              # Spray Anti-Frizz
+}
+
+# También detectar por tag como fallback
 TOP_SELLER_TAGS = {"lo más vendido", "lo mas vendido", "top en ventas", "top ventas", "best seller"}
 FREE_SHIPPING_THRESHOLD = 149_900  # COP
 
@@ -89,9 +99,13 @@ def normalize_products(raw_products: list[dict]) -> list[dict]:
         except (ValueError, TypeError):
             compare_at = None
 
-        # Tags → detectar Top Ventas
+        # Tags → detectar Top Ventas (handle exacto tiene prioridad, tags como fallback)
         tags = [t.lower().strip() for t in p.get("tags", [])]
-        is_top_seller = any(t in TOP_SELLER_TAGS for t in tags)
+        handle = p.get("handle", "").lower().strip()
+        is_top_seller = (
+            handle in TOP_SELLER_HANDLES
+            or any(t in TOP_SELLER_TAGS for t in tags)
+        )
 
         # Colección/tipo desde tags
         product_type = _infer_type_from_tags(tags)

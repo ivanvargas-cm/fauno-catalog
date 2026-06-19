@@ -10,6 +10,11 @@ on:
         required: false
         default: 'false'
         type: boolean
+      benefits_sheet_id:
+        description: 'ID del Google Sheet con pestaña Beneficios (opcional)'
+        required: false
+        default: ''
+        type: string
 
 jobs:
   generate-catalog:
@@ -35,10 +40,20 @@ jobs:
           playwright install chromium --with-deps
 
       - name: Generar imágenes de catálogo
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: |
           ARGS="--shopify --github-push --github-repo ${{ github.repository }} --base-url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/images"
           if [ "${{ inputs.only_sale }}" = "true" ]; then
             ARGS="$ARGS --only-sale"
+          fi
+          # Beneficios: usar input manual o variable de entorno del repo
+          BENEFITS_ID="${{ inputs.benefits_sheet_id }}"
+          if [ -z "$BENEFITS_ID" ]; then
+            BENEFITS_ID="${{ vars.BENEFITS_SHEET_ID }}"
+          fi
+          if [ -n "$BENEFITS_ID" ]; then
+            ARGS="$ARGS --benefits-sheet-id $BENEFITS_ID"
           fi
           python main.py $ARGS
 

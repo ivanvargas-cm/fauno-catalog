@@ -157,6 +157,111 @@ def read_products_from_sheets(sheet_id: str, worksheet_name: str = None) -> list
 # Escritura de URLs generadas al Sheet / CSV
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Lector de beneficios por producto desde Google Sheets
+# ─────────────────────────────────────────────────────────────────────────────
+
+def read_benefits_from_sheets(
+    sheet_id: str,
+    worksheet_name: str = "Beneficios",
+) -> dict[str, list[str]]:
+    """
+    Lee un sheet con beneficios por producto y retorna un dict {handle: [b1, b2, b3]}.
+
+    Estructura del sheet (pestaña "Beneficios"):
+      | handle                  | benefit_1      | benefit_2    | benefit_3    |
+      | shampoo-sin-sulfatos    | Sin Sulfatos   | pH Balanceado| Vegano       |
+      | mascarilla-plex         | Tecnología Plex| Sin Parabenos| Restaura daño|
+
+    También acepta columna 'id' como clave alternativa.
+    Si una celda está vacía, la ignora.
+    """
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+    except ImportError:
+        raise ImportError("Instala: pip install gspread google-auth")
+
+    creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if not creds_json:
+        raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON no configurada")
+
+    creds_dict = json.loads(creds_json)
+    scopes = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+
+    ss = client.open_by_key(sheet_id)
+    try:
+        ws = ss.worksheet(worksheet_name)
+    except Exception:
+        logger.warning(f"Pestaña '{worksheet_name}' no encontrada en el sheet {sheet_id}")
+        return {}
+
+    rows = ws.get_all_records()
+    benefits_map: dict[str, list[str]] = {}
+
+    for row in rows:
+        # Clave: handle o id
+        key = (row.get("handle") or row.get("id") or "").strip().lower()
+        if not key:
+            continue
+
+        # Recoger benefit_1, benefit_2, benefit_3 (ignorar vacíos)
+        benefits = [
+            str(row.get(f"benefit_{i}", "")).strip()
+            for i in range(1, 4)
+            if str(row.get(f"benefit_{i}", "")).strip()
+        ]
+
+        # También acepta columna 'benefits' con valores separados por coma
+        if not benefits and row.get("benefits"):
+            benefits = [b.strip() for b in str(row["benefits"]).split(",") if b.strip()]
+
+        if benefits:
+            benefits_map[key] = benefits
+
+    logger.info(f"📋 {len(benefits_map)} productos con beneficios personalizados cargados")
+    return benefits_map
+
+
+def read_benefits_from_csv(csv_path: str | Path) -> dict[str, list[str]]:
+    """
+    Lee beneficios desde un CSV local (alternativa sin Google Sheets API).
+
+    Formato:
+      handle,benefit_1,benefit_2,benefit_3
+      shampoo-sin-sulfatos,Sin Sulfatos,pH Balanceado,Vegano
+    """
+    path = Path(csv_path)
+    if not path.exists():
+        logger.warning(f"CSV de beneficios no encontrado: {path}")
+        return {}
+
+    benefits_map: dict[str, list[str]] = {}
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row.get("handle") or row.get("id") or "").strip().lower()
+            if not key:
+                continue
+            benefits = [
+                row.get(f"benefit_{i}", "").strip()
+                for i in range(1, 4)
+                if row.get(f"benefit_{i}", "").strip()
+            ]
+            if not benefits and row.get("benefits"):
+                benefits = [b.strip() for b in row["benefits"].split(",") if b.strip()]
+            if benefits:
+                benefits_map[key] = benefits
+
+    logger.info(f"📋 {len(benefits_map)} productos con beneficios desde CSV")
+    return benefits_map
+
+
 def write_image_urls_to_csv(
     products: list[dict],
     image_urls: dict[str, str],

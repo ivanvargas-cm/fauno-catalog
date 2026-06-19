@@ -4,297 +4,311 @@
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: transparent; width: 1080px; height: 1080px; overflow: hidden; }
-  canvas { display: block; }
+
+  body {
+    width: 1080px;
+    height: 1080px;
+    overflow: hidden;
+    background: transparent;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  #container {
+    width: 1080px;
+    height: 1080px;
+    background: radial-gradient(ellipse 90% 70% at 30% 20%, #FFFDE0 0%, #F2D820 100%);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── Logo ── */
+  .logo-area {
+    text-align: center;
+    padding-top: 48px;
+    padding-bottom: 16px;
+    flex-shrink: 0;
+  }
+  .logo-area img {
+    height: 78px;
+    object-fit: contain;
+  }
+
+  /* ── Main two-column layout ── */
+  .main-content {
+    display: flex;
+    flex: 1;
+    padding: 10px 36px 44px 54px;
+    gap: 28px;
+    overflow: hidden;
+  }
+
+  /* ── Left column ── */
+  .left-col {
+    width: 400px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-top: 24px;
+    padding-bottom: 10px;
+  }
+
+  .product-name {
+    font-weight: 900;
+    font-size: 64px;
+    color: #1a1a1a;
+    text-align: center;
+    line-height: 1.08;
+    letter-spacing: -1px;
+    white-space: pre-wrap;
+  }
+
+  .benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .benefit-row {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .benefit-icon {
+    width: 58px;
+    height: 58px;
+    flex-shrink: 0;
+  }
+
+  .benefit-text {
+    font-size: 27px;
+    color: #2a2a2a;
+    line-height: 1.25;
+    font-weight: 400;
+  }
+
+  /* ── Right column ── */
+  .right-col {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-card {
+    background: #FFFFFF;
+    border-radius: 30px;
+    width: 530px;
+    height: 830px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 6px 28px rgba(0,0,0,0.09);
+    overflow: hidden;
+  }
+
+  /* ── Top en ventas badge ── */
+  .top-badge {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: #E8893A;
+    color: #FFFFFF;
+    font-size: 27px;
+    font-weight: 700;
+    padding: 10px 26px;
+    border-radius: 50px;
+    display: none;
+    white-space: nowrap;
+  }
+
+  /* ── Product image area ── */
+  .product-image-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 30px 24px 10px;
+  }
+
+  .product-image-wrap img {
+    max-width: 440px;
+    max-height: 580px;
+    object-fit: contain;
+  }
+
+  /* ── Price ── */
+  .price-area {
+    width: 100%;
+    text-align: center;
+    padding: 16px 24px 32px;
+  }
+
+  .price-compare {
+    font-size: 30px;
+    color: #999;
+    text-decoration: line-through;
+    margin-bottom: 4px;
+    display: none;
+  }
+
+  .price {
+    font-size: 68px;
+    font-weight: 900;
+    color: #1a1a1a;
+    letter-spacing: -2px;
+  }
 </style>
 </head>
 <body>
-<canvas id="c" width="1080" height="1080"></canvas>
+<div id="container">
+
+  <!-- Logo -->
+  <div class="logo-area">
+    <img id="logo" src="" alt="Fauno" crossorigin="anonymous">
+  </div>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+    <!-- Left column -->
+    <div class="left-col">
+      <div class="product-name" id="product-name">Nombre\nProducto</div>
+
+      <div class="benefits" id="benefits">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Right column: product card -->
+    <div class="right-col">
+      <div class="product-card">
+        <div class="top-badge" id="top-badge">Top en ventas</div>
+
+        <div class="product-image-wrap">
+          <img id="product-img" src="" alt="" crossorigin="anonymous">
+        </div>
+
+        <div class="price-area">
+          <div class="price-compare" id="price-compare"></div>
+          <div class="price" id="price">$38,900</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 <script>
-const SIZE = 1080;
+// ── SVG Icons (line art, matching Canva design) ──────────────────────────────
 
-function loadImg(url) {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => res(img);
-    img.onerror = () => rej(new Error('Failed: ' + url));
-    img.src = url;
-  });
-}
+const ICON_DERM = `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M28 6C28 6 10 18 10 32C10 41.9 18.1 50 28 50C37.9 50 46 41.9 46 32C46 18 28 6 28 6Z"
+        stroke="#1a1a1a" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M20 32L25.5 37.5L37 26" stroke="#1a1a1a" stroke-width="2.8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
 
-// Remoción de fondo SOLO para blancos/casi blancos
-// Mucho más segura que samplear el color de la esquina
-function removeWhiteBg(img, threshold = 230, feather = 20) {
-  const c = document.createElement('canvas');
-  c.width = img.naturalWidth;
-  c.height = img.naturalHeight;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-  const id = ctx.getImageData(0, 0, c.width, c.height);
-  const d = id.data;
-  const W = c.width, H = c.height;
-  const visited = new Uint8Array(W * H);
+const ICON_CRUELTY = `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="28" cy="38" rx="13" ry="11" stroke="#1a1a1a" stroke-width="2.5"/>
+  <ellipse cx="28" cy="24" rx="9" ry="8" stroke="#1a1a1a" stroke-width="2.5"/>
+  <path d="M22 18C20 10 15 6 15 6" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M34 18C36 10 41 6 41 6" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="24.5" cy="23" r="1.8" fill="#1a1a1a"/>
+  <circle cx="31.5" cy="23" r="1.8" fill="#1a1a1a"/>
+  <path d="M26.5 27L28 29L29.5 27" stroke="#1a1a1a" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="41" cy="39" r="3.5" stroke="#1a1a1a" stroke-width="2"/>
+</svg>`;
 
-  function isWhitish(x, y) {
-    const i = (y * W + x) * 4;
-    return d[i] >= threshold && d[i+1] >= threshold && d[i+2] >= threshold;
-  }
+const ICON_NATURAL = `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M28 50V24" stroke="#1a1a1a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M28 36C28 36 16 30 13 18C24 18 28 30 28 36Z"
+        stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linejoin="round"/>
+  <path d="M28 28C28 28 40 22 43 10C32 10 28 22 28 28Z"
+        stroke="#1a1a1a" stroke-width="2" fill="none" stroke-linejoin="round"/>
+  <path d="M43 34L44 30L45 34L49 35L45 36L44 40L43 36L39 35Z" fill="#1a1a1a"/>
+</svg>`;
 
-  // Flood fill desde las 4 esquinas, solo elimina píxeles casi blancos
-  const stack = [];
-  [[0,0],[W-1,0],[0,H-1],[W-1,H-1]].forEach(([x,y]) => {
-    if (isWhitish(x, y)) stack.push({x, y});
-  });
-
-  while (stack.length) {
-    const {x, y} = stack.pop();
-    if (x < 0 || x >= W || y < 0 || y >= H) continue;
-    const idx = y * W + x;
-    if (visited[idx]) continue;
-    visited[idx] = 1;
-    if (!isWhitish(x, y)) continue;
-    // Transparencia proporcional a qué tan blanco es
-    const i = idx * 4;
-    const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
-    const alpha = Math.max(0, 255 - brightness);
-    d[i+3] = Math.min(d[i+3], alpha);
-    stack.push({x:x+1,y},{x:x-1,y},{x,y:y+1},{x,y:y-1});
-  }
-
-  // Feather: suavizar bordes semi-transparentes
-  for (let pass = 0; pass < 2; pass++) {
-    for (let y = 1; y < H-1; y++) {
-      for (let x = 1; x < W-1; x++) {
-        const i = (y*W+x)*4;
-        if (d[i+3] > 0 && d[i+3] < 200) {
-          const neighbors = [
-            d[((y-1)*W+x)*4+3], d[((y+1)*W+x)*4+3],
-            d[(y*W+x-1)*4+3],   d[(y*W+x+1)*4+3]
-          ];
-          const avg = neighbors.reduce((a,b) => a+b, 0) / 4;
-          d[i+3] = Math.round((d[i+3] + avg) / 2);
-        }
-      }
-    }
-  }
-
-  ctx.putImageData(id, 0, 0);
-  return c;
-}
-
-// Remoción de fondo para el logo (fondo gris claro)
-function removeLogoBg(img) {
-  const c = document.createElement('canvas');
-  c.width = img.naturalWidth;
-  c.height = img.naturalHeight;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-  const id = ctx.getImageData(0, 0, c.width, c.height);
-  const d = id.data;
-  const W = c.width, H = c.height;
-  const visited = new Uint8Array(W * H);
-
-  function colorDist(x, y, br, bg, bb) {
-    const i = (y * W + x) * 4;
-    return Math.sqrt((d[i]-br)**2 + (d[i+1]-bg)**2 + (d[i+2]-bb)**2);
-  }
-  function getBgColor(x, y) {
-    const i = (y * W + x) * 4;
-    return [d[i], d[i+1], d[i+2]];
-  }
-
-  const stack = [];
-  [[0,0],[W-1,0],[0,H-1],[W-1,H-1]].forEach(([x,y]) => {
-    const [br,bg,bb] = getBgColor(x,y);
-    stack.push({x, y, br, bg, bb});
-  });
-
-  while (stack.length) {
-    const {x, y, br, bg, bb} = stack.pop();
-    if (x < 0 || x >= W || y < 0 || y >= H) continue;
-    const idx = y * W + x;
-    if (visited[idx]) continue;
-    visited[idx] = 1;
-    if (colorDist(x, y, br, bg, bb) > 50) continue;
-    d[idx*4+3] = 0;
-    stack.push({x:x+1,y,br,bg,bb},{x:x-1,y,br,bg,bb},{x,y:y+1,br,bg,bb},{x,y:y-1,br,bg,bb});
-  }
-
-  ctx.putImageData(id, 0, 0);
-  return c;
-}
+const DEFAULT_BENEFITS = [
+  { icon: ICON_DERM,    text: 'Dermatológicamente\ncomprobado' },
+  { icon: ICON_CRUELTY, text: 'Libre de\ncrueldad animal' },
+  { icon: ICON_NATURAL, text: 'Extractos\nnaturales' },
+];
 
 function formatPrice(n) {
-  return '$ ' + Math.round(n).toLocaleString('es-CO');
-}
-
-// Dibuja texto con wrap automático, retorna Y final
-function drawWrappedText(ctx, text, x, maxWidth, y, lineHeight) {
-  const words = text.split(' ');
-  let line = '';
-  let currentY = y;
-  for (const word of words) {
-    const test = line ? line + ' ' + word : word;
-    if (ctx.measureText(test).width > maxWidth && line) {
-      ctx.fillText(line, x, currentY);
-      line = word;
-      currentY += lineHeight;
-    } else {
-      line = test;
-    }
-  }
-  if (line) ctx.fillText(line, x, currentY);
-  return currentY + lineHeight;
+  return '$' + Math.round(n).toLocaleString('es-CO');
 }
 
 async function renderProduct(data) {
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d');
-  const S = SIZE;
+  // ── Logo
+  document.getElementById('logo').src = data.logo_url;
 
-  // ── 1. Fondo amarillo
-  ctx.fillStyle = '#FFEC9A';
-  ctx.fillRect(0, 0, S, S);
+  // ── Product name (title + subtitle en líneas separadas)
+  const nameEl = document.getElementById('product-name');
+  const fullTitle = data.subtitle ? data.title + '\n' + data.subtitle : data.title;
+  nameEl.textContent = fullTitle;
 
-  // ── 2. Panel teal diagonal derecho
-  ctx.beginPath();
-  ctx.moveTo(S*0.41, 0); ctx.lineTo(S, 0);
-  ctx.lineTo(S, S); ctx.lineTo(S*0.21, S);
-  ctx.closePath();
-  ctx.fillStyle = '#01756C';
-  ctx.fill();
+  const len = fullTitle.length;
+  if      (len > 50) nameEl.style.fontSize = '42px';
+  else if (len > 38) nameEl.style.fontSize = '50px';
+  else if (len > 28) nameEl.style.fontSize = '56px';
+  else               nameEl.style.fontSize = '64px';
 
-  // ── 3. Glow sutil en teal
-  const grd = ctx.createRadialGradient(S*0.79, S*0.20, 0, S*0.79, S*0.20, S*0.40);
-  grd.addColorStop(0, 'rgba(255,255,255,0.07)');
-  grd.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.beginPath();
-  ctx.moveTo(S*0.41,0); ctx.lineTo(S,0);
-  ctx.lineTo(S,S); ctx.lineTo(S*0.21,S);
-  ctx.closePath();
-  ctx.fillStyle = grd; ctx.fill();
+  // ── Benefits: custom del sheet o defaults del diseño Canva
+  const benefitsEl = document.getElementById('benefits');
+  benefitsEl.innerHTML = '';
+  const icons = [ICON_DERM, ICON_CRUELTY, ICON_NATURAL];
 
-  // ── 4. Cargar imágenes
-  const [productImg, logoImg] = await Promise.all([
-    loadImg(data.image_url),
-    loadImg(data.logo_url)
-  ]);
-  const productClean = removeWhiteBg(productImg, 235, 20);
-  const logoClean    = removeLogoBg(logoImg);
-
-  // ── 5. Producto centrado en teal
-  const pW = productClean.width, pH = productClean.height;
-  const pScale = Math.min((S*0.56)/pW, (S*0.82)/pH);
-  const pDW = pW*pScale, pDH = pH*pScale;
-  const pX = S*0.42 + (S*0.58 - pDW)/2;
-  const pY = (S - pDH)/2 + S*0.02;
-  ctx.shadowColor = 'rgba(0,0,0,0.18)';
-  ctx.shadowBlur = S*0.03;
-  ctx.shadowOffsetY = S*0.015;
-  ctx.drawImage(productClean, pX, pY, pDW, pDH);
-  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-
-  // ── 6. Logo
-  const lW = logoClean.width, lH = logoClean.height;
-  const lScale = Math.min((S*0.28)/lW, (S*0.10)/lH);
-  ctx.drawImage(logoClean, S*0.040, S*0.038, lW*lScale, lH*lScale);
-
-  // ── 7. Nombre del producto (wrap automático)
-  ctx.fillStyle = '#1a2e28';
-  const maxTitleW = S*0.34;
-  const titleY = S*0.24;
-
-  // Tamaño de fuente dinámico según largo del título
-  const titleLen = data.title.length;
-  const fontSize = titleLen > 20 ? S*0.048 : S*0.056;
-  ctx.font = `800 ${fontSize}px Georgia, serif`;
-
-  const titleEndY = drawWrappedText(ctx, data.title, S*0.040, maxTitleW, titleY, fontSize*1.2);
-
-  // Subtítulo
-  if (data.subtitle) {
-    ctx.font = `${S*0.030}px Georgia, serif`;
-    ctx.fillText(data.subtitle, S*0.040, titleEndY + S*0.01);
+  let bList = DEFAULT_BENEFITS;
+  if (data.benefits && data.benefits.length >= 1) {
+    bList = data.benefits.slice(0, 3).map((text, i) => ({
+      icon: icons[i] || ICON_NATURAL,
+      text,
+    }));
   }
 
-  // ── 8. Benefits
-  const benefits = (data.benefits || []).slice(0, 3);
-  ctx.font = `600 ${S*0.028}px Arial, sans-serif`;
-  const benefitsStartY = S*0.63;
-  benefits.forEach((cl, i) => {
-    const tw = ctx.measureText(cl).width;
-    const pw = tw + S*0.044, ph = S*0.052;
-    const px = S*0.040, py = benefitsStartY + i*(ph + S*0.016);
-    ctx.fillStyle = 'rgba(1,117,108,0.13)';
-    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, ph/2); ctx.fill();
-    ctx.strokeStyle = 'rgba(1,117,108,0.28)'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#01756C';
-    ctx.fillText(cl, px + S*0.022, py + ph*0.68);
+  bList.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'benefit-row';
+    row.innerHTML = `
+      <div class="benefit-icon">${b.icon}</div>
+      <div class="benefit-text">${b.text.replace(/\n/g, '<br>')}</div>
+    `;
+    benefitsEl.appendChild(row);
   });
 
-  // ── 9. Precio
+  // ── Product image
+  document.getElementById('product-img').src = data.image_url;
+
+  // ── Price
   const isOnSale = data.compare_at_price && data.compare_at_price > data.price;
+  document.getElementById('price').textContent = formatPrice(data.price);
+
+  const compareEl = document.getElementById('price-compare');
   if (isOnSale) {
-    ctx.fillStyle = '#999';
-    ctx.font = `${S*0.030}px Arial`;
-    const op = formatPrice(data.compare_at_price);
-    const opX = S*0.040, opY = S*0.893;
-    ctx.fillText(op, opX, opY);
-    const opW = ctx.measureText(op).width;
-    ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(opX, opY - S*0.007);
-    ctx.lineTo(opX + opW, opY - S*0.007);
-    ctx.stroke();
-    ctx.fillStyle = '#1a2e28';
-    ctx.font = `900 ${S*0.068}px Georgia, serif`;
-    ctx.fillText(formatPrice(data.price), S*0.040, S*0.968);
-  } else {
-    ctx.fillStyle = '#1a2e28';
-    ctx.font = `900 ${S*0.068}px Georgia, serif`;
-    ctx.fillText(formatPrice(data.price), S*0.040, S*0.968);
+    compareEl.textContent = formatPrice(data.compare_at_price);
+    compareEl.style.display = 'block';
   }
 
-  // ── 10. Badge descuento o etiqueta
-  if (isOnSale) {
-    const discPct = Math.round((1 - data.price / data.compare_at_price) * 100);
-    if (discPct >= 5) {
-      const bx = S*0.875, by = S*0.082, br = S*0.075;
-      ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2);
-      ctx.fillStyle = '#E8534A'; ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-      ctx.font = `900 ${S*0.038}px Arial`;
-      ctx.fillText(`-${discPct}%`, bx, by + S*0.014);
-      ctx.textAlign = 'left';
-    }
-  } else if (data.label) {
-    const labels = { top_ventas:'⭐ Top Ventas', nuevo:'✦ Nuevo', exclusivo_online:'EXCLUSIVO ONLINE' };
-    const tag = labels[data.label] || data.label;
-    ctx.font = `600 ${S*0.026}px Arial`;
-    const tw = ctx.measureText(tag).width + S*0.040;
-    const tx = S*0.965 - tw, ty = S*0.040;
-    ctx.fillStyle = 'rgba(255,255,255,0.16)';
-    ctx.beginPath(); ctx.roundRect(tx, ty, tw, S*0.050, S*0.013); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.30)'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.fillText(tag, tx + S*0.018, ty + S*0.033);
+  // ── Top en ventas badge (solo para productos indicados)
+  if (data.label === 'top_ventas') {
+    document.getElementById('top-badge').style.display = 'block';
   }
 
-  // ── 11. Envío gratis
-  if (data.free_shipping) {
-    const es = '🚚 Envío gratis';
-    ctx.font = `600 ${S*0.026}px Arial`;
-    const ew = ctx.measureText(es).width + S*0.040;
-    const ex = S*0.965 - ew, ey = S*0.926;
-    ctx.fillStyle = 'rgba(255,255,255,0.14)';
-    ctx.beginPath(); ctx.roundRect(ex, ey, ew, S*0.050, S*0.013); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.26)'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.fillText(es, ex + S*0.018, ey + S*0.033);
-  }
+  // ── Esperar imágenes
+  await Promise.all(
+    [...document.images].filter(img => img.src).map(img =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise(r => { img.onload = r; img.onerror = r; })
+    )
+  );
 
+  await new Promise(r => setTimeout(r, 300));
   window.__RENDER_COMPLETE__ = true;
 }
 
